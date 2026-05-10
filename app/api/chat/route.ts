@@ -78,7 +78,7 @@ async function callGemini(
       contents: messages,
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 1500,
+        maxOutputTokens: 3000,
         topP: 0.9,
       },
     }),
@@ -118,7 +118,7 @@ async function callOpenRouter(
       model,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 3000,
     }),
     signal: AbortSignal.timeout(30_000),
   });
@@ -154,7 +154,7 @@ async function callGroq(
       model,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 3000,
     }),
     signal: AbortSignal.timeout(20_000),
   });
