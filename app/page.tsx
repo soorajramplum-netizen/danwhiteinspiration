@@ -1,4 +1,3 @@
-'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { CASE_STUDIES } from '@/lib/knowledge-base';
@@ -16,42 +15,75 @@ interface ApiMessage {
 }
 
 const PROVIDER_COLORS: Record<string, string> = {
-  gemini: '#4285F4',
+  gemini:     '#4285F4',
   openrouter: '#9C5FD6',
-  groq: '#22C55E',
+  groq:       '#22C55E',
 };
 
 const STARTER_QUESTIONS = [
-  "How do I grow market share in a saturated category?",
-  "When should I invest in brand-building vs performance marketing?",
-  "My product keeps getting copied. How do I protect brand equity?",
-  "How do I launch into a new market or occasion?",
-  "Our brand feels dated. How do we reinvent ourselves?",
-  "How do I create impact with a small marketing budget?",
-  "What makes a brand character truly iconic and enduring?",
-  "How do I expand into new geographies without losing brand identity?",
+  { emoji: '📈', text: 'How do I grow market share in a saturated category?' },
+  { emoji: '🎯', text: 'When should I invest in brand-building vs performance marketing?' },
+  { emoji: '🛡️', text: 'My product keeps getting copied. How do I protect brand equity?' },
+  { emoji: '🌍', text: 'How do I launch into a new market or occasion?' },
+  { emoji: '✨', text: 'Our brand feels dated. How do other brands successfully reinvent themselves?' },
+  { emoji: '💡', text: 'How do I create marketing impact with a small budget?' },
+  { emoji: '🦁', text: 'What makes a brand character truly iconic and enduring?' },
+  { emoji: '🔄', text: 'How do I expand geographies without losing brand identity?' },
 ];
 
 function parseMarkdown(text: string): string {
   return text
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="md-oli">$1</li>')
-    .replace(/^[-•] (.+)$/gm, '<li class="md-li">$1</li>')
-    .replace(/(<li class="md-oli">[\s\S]*?<\/li>\n?)+/g, m => `<ol class="md-ol">${m}</ol>`)
-    .replace(/(<li class="md-li">[\s\S]*?<\/li>\n?)+/g, m => `<ul class="md-ul">${m}</ul>`)
-    .replace(/\n\n/g, '</p><p class="md-p">')
-    .replace(/\n/g, '<br />')
-    .replace(/^(?!<[houpl])(.+)$/, '<p class="md-p">$1</p>')
-    .replace(/<p class="md-p"><\/p>/g, '');
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^\d+\. (.+)$/gm, '<li class="oli">$1</li>')
+    .replace(/^[-•] (.+)$/gm, '<li class="uli">$1</li>')
+    .replace(/(<li class="oli">[\s\S]*?<\/li>\n?)+/g, m => `<ol>${m}</ol>`)
+    .replace(/(<li class="uli">[\s\S]*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br/>')
+    .replace(/^(?!<[houpl])(.+)$/, '<p>$1</p>')
+    .replace(/<p><\/p>/g, '');
+}
+
+// Dan White avatar as SVG illustration (mint/magenta palette)
+function DanWhiteAvatar({ size = 40 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Badge ring */}
+      <circle cx="40" cy="40" r="38" fill="#C4437C" />
+      <circle cx="40" cy="40" r="34" fill="#D4E9E9" />
+      {/* Face */}
+      <circle cx="40" cy="35" r="16" fill="#F4C5A0" />
+      {/* Hair */}
+      <ellipse cx="40" cy="21" rx="13" ry="7" fill="#5C3A1E" />
+      <ellipse cx="29" cy="27" rx="5" ry="8" fill="#5C3A1E" />
+      <ellipse cx="51" cy="27" rx="5" ry="8" fill="#5C3A1E" />
+      {/* Eyes */}
+      <circle cx="34" cy="34" r="2.5" fill="#2D1B0E" />
+      <circle cx="46" cy="34" r="2.5" fill="#2D1B0E" />
+      <circle cx="35" cy="33" r="0.8" fill="white" />
+      <circle cx="47" cy="33" r="0.8" fill="white" />
+      {/* Smile */}
+      <path d="M33 40 Q40 46 47 40" stroke="#2D1B0E" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      {/* Body / collar */}
+      <ellipse cx="40" cy="62" rx="16" ry="10" fill="#2D6A6A" />
+      <path d="M34 52 L40 58 L46 52" fill="white" />
+      {/* Stars on badge */}
+      <text x="12" y="22" fontSize="6" fill="#C4437C">★</text>
+      <text x="60" y="22" fontSize="6" fill="#C4437C">★</text>
+      <text x="12" y="62" fontSize="6" fill="#C4437C">★</text>
+      <text x="60" y="62" fontSize="6" fill="#C4437C">★</text>
+    </svg>
+  );
 }
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [apiHistory, setApiHistory] = useState<ApiMessage[]>([]);
+  const [usedCaseIds, setUsedCaseIds] = useState<number[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showExplorer, setShowExplorer] = useState(false);
@@ -60,7 +92,6 @@ export default function Home() {
   const [filterTheme, setFilterTheme] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const inputAreaRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -73,15 +104,13 @@ export default function Home() {
     if (!q || isLoading) return;
     setMessages(prev => [...prev, { role: 'user', content: q }]);
     setInput('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '52px';
-    }
+    if (textareaRef.current) textareaRef.current.style.height = '52px';
     setIsLoading(true);
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiHistory, question: q }),
+        body: JSON.stringify({ messages: apiHistory, question: q, usedCaseIds }),
       });
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
@@ -92,10 +121,11 @@ export default function Home() {
         model: data.model,
       }]);
       setApiHistory(data.updatedHistory);
+      if (data.usedCaseIds) setUsedCaseIds(data.usedCaseIds);
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Something went wrong. Please try again.',
+        content: 'Something went wrong reaching the Oracle. Please try again.',
       }]);
     } finally {
       setIsLoading(false);
@@ -103,18 +133,14 @@ export default function Home() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
   };
 
   const allThemes = Array.from(new Set(CASE_STUDIES.flatMap(c => c.theme))).sort();
   const filteredCases = CASE_STUDIES.filter(cs => {
     const q = searchQuery.toLowerCase();
-    const matchSearch = !q || cs.title.toLowerCase().includes(q) || cs.brand.toLowerCase().includes(q) || cs.principle.toLowerCase().includes(q);
-    const matchTheme = !filterTheme || cs.theme.includes(filterTheme);
-    return matchSearch && matchTheme;
+    return (!q || cs.title.toLowerCase().includes(q) || cs.brand.toLowerCase().includes(q) || cs.principle.toLowerCase().includes(q))
+      && (!filterTheme || cs.theme.includes(filterTheme));
   });
 
   const hasMessages = messages.length > 0;
@@ -122,70 +148,81 @@ export default function Home() {
   return (
     <>
       <style>{`
-        .md-p { margin: 0 0 0.9em; line-height: 1.75; }
-        .md-p:last-child { margin-bottom: 0; }
-        .md-h1, .md-h2, .md-h3 { font-family: var(--font-display); color: #E8C96A; margin: 1.2em 0 0.5em; font-weight: 600; }
-        .md-h1 { font-size: 1.15em; }
-        .md-h2 { font-size: 1.05em; }
-        .md-h3 { font-size: 0.97em; }
-        .md-h1:first-child, .md-h2:first-child, .md-h3:first-child { margin-top: 0; }
-        .md-ul, .md-ol { margin: 0.5em 0 0.9em; padding-left: 0; list-style: none; }
-        .md-ul .md-li, .md-ol .md-oli { position: relative; padding: 0.25em 0 0.25em 1.5em; line-height: 1.65; }
-        .md-ul .md-li::before { content: '▸'; position: absolute; left: 0; color: #C9A84C; font-size: 0.8em; top: 0.35em; }
-        .md-ol { counter-reset: item; }
-        .md-ol .md-oli { counter-increment: item; }
-        .md-ol .md-oli::before { content: counter(item) '.'; position: absolute; left: 0; color: #C9A84C; font-size: 0.85em; font-weight: 600; top: 0.28em; }
-        strong { color: #E8C96A; font-weight: 600; }
-        em { color: #A8B5C2; font-style: italic; }
-        .chat-scroll { overflow-y: auto; scroll-behavior: smooth; }
-        .chat-scroll::-webkit-scrollbar { width: 4px; }
-        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-        .chat-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.15); border-radius: 2px; }
-        .fade-in { animation: fadeIn 0.3s ease forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .typing-dot { animation: typingBounce 1.2s infinite ease-in-out; }
-        .typing-dot:nth-child(2) { animation-delay: 0.15s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.3s; }
-        @keyframes typingBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
+        body { background: #B8D8D8; }
+        .md-body p { margin: 0 0 0.85em; color: #1A4A4A; line-height: 1.75; }
+        .md-body p:last-child { margin-bottom: 0; }
+        .md-body strong { color: #1A4A4A; font-weight: 700; }
+        .md-body em { color: #9E2E60; font-style: italic; }
+        .md-body h1, .md-body h2, .md-body h3 { color: #1A4A4A; font-weight: 700; margin: 1.1em 0 0.45em; }
+        .md-body h1 { font-size: 1.08em; }
+        .md-body h2 { font-size: 1.01em; }
+        .md-body h3 { font-size: 0.96em; }
+        .md-body h1:first-child, .md-body h2:first-child, .md-body h3:first-child { margin-top: 0; }
+        .md-body ul, .md-body ol { margin: 0.4em 0 0.85em; padding: 0; list-style: none; }
+        .md-body li { position: relative; padding: 0.2em 0 0.2em 1.4em; line-height: 1.65; color: #1A4A4A; }
+        .md-body ul .uli::before { content: '▸'; position: absolute; left: 0; color: #C4437C; font-size: 0.8em; top: 0.35em; }
+        .md-body ol { counter-reset: item; }
+        .md-body ol .oli { counter-increment: item; }
+        .md-body ol .oli::before { content: counter(item) '.'; position: absolute; left: 0; color: #C4437C; font-weight: 700; font-size: 0.82em; top: 0.3em; }
+        .fade-in { animation: fi 0.3s ease forwards; }
+        @keyframes fi { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        .typing-dot { animation: tb 1.2s infinite ease-in-out; }
+        .typing-dot:nth-child(2) { animation-delay: .15s; }
+        .typing-dot:nth-child(3) { animation-delay: .3s; }
+        @keyframes tb { 0%,80%,100% { transform:scale(.6); opacity:.3; } 40% { transform:scale(1); opacity:1; } }
+        .chat-scroll { overflow-y:auto; scroll-behavior:smooth; }
+        .chat-scroll::-webkit-scrollbar { width:4px; }
+        .chat-scroll::-webkit-scrollbar-thumb { background:rgba(196,67,124,.25); border-radius:2px; }
+        .no-scrollbar::-webkit-scrollbar { display:none; }
+        .pill-btn { transition: all .15s ease; }
+        .pill-btn:hover { background: rgba(196,67,124,0.12); border-color: #C4437C; color: #C4437C; }
+        .starter-card:hover { background: rgba(255,255,255,0.7); border-color: #C4437C; transform: translateY(-1px); }
+        .starter-card { transition: all .2s ease; }
+        input, textarea, select { font-family: 'Space Grotesk', sans-serif; }
       `}</style>
 
-      <div className="h-screen bg-ink flex flex-col overflow-hidden" style={{ fontFamily: 'var(--font-body)' }}>
-
-        {/* Ambient glows */}
-        <div className="fixed inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-gold opacity-[0.025] rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gold opacity-[0.015] rounded-full blur-3xl" />
-        </div>
+      <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#B8D8D8', fontFamily: 'Space Grotesk, sans-serif' }}>
 
         {/* ── Header ── */}
-        <header className="relative z-20 flex-shrink-0 border-b border-white/5 bg-ink/95 backdrop-blur-xl">
-          <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
+        <header style={{ background: 'rgba(184,216,216,0.92)', borderBottom: '2px solid #9DC5C5', backdropFilter: 'blur(12px)' }} className="flex-shrink-0 relative z-20">
+          <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between">
+
+            {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="relative w-8 h-8 flex-shrink-0">
-                <div className="absolute inset-0 border border-gold/40 rotate-45" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-gold text-[10px] font-mono font-semibold">MO</span>
-                </div>
+              <div className="flex-shrink-0 drop-shadow-sm">
+                <DanWhiteAvatar size={44} />
               </div>
               <div>
-                <span className="text-cream font-display font-semibold text-base leading-none">Marketing Oracle</span>
-                <span className="text-gold/40 text-[11px] font-mono ml-2">100 cases · Dan White</span>
+                <h1 style={{ color: '#1A4A4A', fontWeight: 700, fontSize: '1.1rem', lineHeight: 1.1 }}>
+                  Marketing Inspiration
+                </h1>
+                <p style={{ color: '#C4437C', fontSize: '0.7rem', fontWeight: 500, marginTop: 2 }}>
+                  Inspired by Dan White · 100 Case Studies
+                </p>
               </div>
             </div>
+
+            {/* Actions */}
             <div className="flex items-center gap-2">
               {hasMessages && (
                 <button
-                  onClick={() => { setMessages([]); setApiHistory([]); }}
-                  className="text-[11px] text-mist/30 hover:text-mist/60 px-3 py-1.5 border border-white/5 hover:border-white/10 rounded-lg transition-all"
+                  onClick={() => { setMessages([]); setApiHistory([]); setUsedCaseIds([]); }}
+                  style={{ color: '#2D6A6A', border: '1.5px solid #9DC5C5', borderRadius: 8, fontSize: 12, padding: '6px 12px', background: 'transparent', cursor: 'pointer' }}
+                  className="pill-btn"
                 >
                   New chat
                 </button>
               )}
               <button
                 onClick={() => setShowExplorer(!showExplorer)}
-                className={`text-[11px] px-3 py-1.5 border rounded-lg transition-all ${showExplorer ? 'border-gold/30 bg-gold/10 text-gold' : 'border-white/5 text-mist/40 hover:border-white/10 hover:text-mist/70'}`}
+                style={{
+                  color: showExplorer ? '#fff' : '#2D6A6A',
+                  background: showExplorer ? '#C4437C' : 'transparent',
+                  border: `1.5px solid ${showExplorer ? '#C4437C' : '#9DC5C5'}`,
+                  borderRadius: 8, fontSize: 12, padding: '6px 14px', cursor: 'pointer', fontWeight: 600,
+                }}
               >
-                Browse 100 cases
+                📖 All 100 Cases
               </button>
             </div>
           </div>
@@ -194,46 +231,66 @@ export default function Home() {
         {/* ── Body ── */}
         <div className="flex flex-1 overflow-hidden relative z-10">
 
-          {/* Case explorer sidebar */}
-          <aside className={`${showExplorer ? 'w-72' : 'w-0'} transition-all duration-300 overflow-hidden flex-shrink-0 border-r border-white/5 bg-ink-light/50`}>
-            <div className="w-72 h-full flex flex-col">
-              <div className="p-3 border-b border-white/5 space-y-2">
-                <p className="text-gold/70 text-xs font-mono uppercase tracking-wider">Dan White's 100 Cases</p>
+          {/* ── Case explorer sidebar ── */}
+          <aside
+            style={{
+              width: showExplorer ? 288 : 0,
+              transition: 'width .3s ease',
+              overflow: 'hidden',
+              flexShrink: 0,
+              borderRight: '2px solid #9DC5C5',
+              background: 'rgba(255,255,255,0.45)',
+            }}
+          >
+            <div style={{ width: 288 }} className="h-full flex flex-col">
+              <div style={{ padding: '12px', borderBottom: '1.5px solid #9DC5C5' }} className="space-y-2">
+                <p style={{ color: '#C4437C', fontSize: 11, fontWeight: 700, fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Dan White's 100 Cases
+                </p>
                 <input
                   type="text"
                   placeholder="Search brand or principle..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full bg-ink border border-white/8 rounded-lg px-3 py-2 text-cream text-xs placeholder-mist/20 focus:border-gold/30 transition-colors"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.7)', border: '1.5px solid #9DC5C5', borderRadius: 8, padding: '7px 10px', color: '#1A4A4A', fontSize: 12 }}
                 />
                 <select
                   value={filterTheme}
                   onChange={e => setFilterTheme(e.target.value)}
-                  className="w-full bg-ink border border-white/8 rounded-lg px-3 py-2 text-cream text-xs focus:border-gold/30 transition-colors"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.7)', border: '1.5px solid #9DC5C5', borderRadius: 8, padding: '7px 10px', color: '#1A4A4A', fontSize: 12, cursor: 'pointer' }}
                 >
                   <option value="">All themes</option>
-                  {allThemes.map(t => <option key={t} value={t} className="bg-ink">{t}</option>)}
+                  {allThemes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+
+              <div className="flex-1 chat-scroll" style={{ padding: '8px' }}>
                 {filteredCases.map(cs => (
                   <button
                     key={cs.id}
                     onClick={() => setActiveCase(activeCase === cs.id ? null : cs.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-all ${activeCase === cs.id ? 'bg-gold/8 border border-gold/20' : 'hover:bg-white/3 border border-transparent'}`}
+                    style={{
+                      width: '100%', textAlign: 'left', padding: '10px 10px',
+                      borderRadius: 10, marginBottom: 2,
+                      background: activeCase === cs.id ? 'rgba(196,67,124,0.1)' : 'transparent',
+                      border: `1.5px solid ${activeCase === cs.id ? '#C4437C' : 'transparent'}`,
+                      cursor: 'pointer', transition: 'all .15s',
+                    }}
                   >
-                    <div className="flex gap-2 items-start">
-                      <span className="text-gold/30 font-mono text-[10px] mt-0.5 flex-shrink-0">{String(cs.id).padStart(2,'0')}</span>
-                      <div className="min-w-0">
-                        <p className="text-cream/80 text-xs font-medium truncate">{cs.brand}</p>
-                        <p className="text-mist/35 text-[10px] truncate mt-0.5">{cs.principle}</p>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ color: '#C4437C', fontFamily: 'Space Mono, monospace', fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 }}>
+                        {String(cs.id).padStart(2, '0')}
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ color: '#1A4A4A', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cs.brand}</p>
+                        <p style={{ color: '#2D6A6A', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2, opacity: 0.7 }}>{cs.principle}</p>
                         {activeCase === cs.id && (
-                          <div className="mt-2 space-y-1.5">
-                            <p className="text-mist/55 text-[11px] leading-relaxed">{cs.keyLesson}</p>
-                            {cs.metrics && <p className="text-gold/50 text-[10px] font-mono">{cs.metrics}</p>}
+                          <div style={{ marginTop: 8 }}>
+                            <p style={{ color: '#2D6A6A', fontSize: 11, lineHeight: 1.6, marginBottom: 8 }}>{cs.keyLesson}</p>
+                            {cs.metrics && <p style={{ color: '#C4437C', fontSize: 10, fontFamily: 'Space Mono, monospace', marginBottom: 8 }}>{cs.metrics}</p>}
                             <button
-                              onClick={e => { e.stopPropagation(); handleSubmit(`Tell me more about ${cs.title} by ${cs.brand} and how I can apply Dan White's lesson from it.`); setShowExplorer(false); }}
-                              className="text-[10px] text-gold/70 border border-gold/20 rounded px-2 py-0.5 hover:bg-gold/10 transition-colors mt-1"
+                              onClick={e => { e.stopPropagation(); handleSubmit(`Tell me more about the ${cs.title} case study (Case #${cs.id}) and how I can apply Dan White's lesson.`); setShowExplorer(false); }}
+                              style={{ fontSize: 11, color: '#fff', background: '#C4437C', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 600 }}
                             >
                               Ask Oracle →
                             </button>
@@ -247,73 +304,84 @@ export default function Home() {
             </div>
           </aside>
 
-          {/* Main chat */}
+          {/* ── Main chat ── */}
           <div className="flex-1 flex flex-col overflow-hidden">
 
-            {/* Messages area */}
+            {/* Messages */}
             <div className="flex-1 chat-scroll" id="chat-area">
               {!hasMessages ? (
                 /* ── Hero ── */
-                <div className="h-full flex flex-col items-center justify-center px-6 py-12 text-center">
-                  <div className="mb-7 relative">
-                    <div className="w-16 h-16 border border-gold/25 rotate-45 mx-auto flex items-center justify-center">
-                      <div className="w-10 h-10 border border-gold/15 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-gold/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                        </svg>
-                      </div>
-                    </div>
+                <div className="h-full flex flex-col items-center justify-center px-6 py-10 text-center">
+                  <div style={{ marginBottom: 24 }}>
+                    <DanWhiteAvatar size={72} />
                   </div>
-                  <h2 className="font-display text-3xl md:text-4xl font-semibold text-cream mb-3 leading-tight">
-                    What's your<br />
-                    <span className="gold-shimmer">marketing challenge?</span>
+                  <h2 style={{ color: '#1A4A4A', fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.25, marginBottom: 10 }}>
+                    What's your marketing challenge?
                   </h2>
-                  <p className="text-mist/45 text-sm max-w-md leading-relaxed mb-10">
-                    I'm trained on all 100 case studies from Dan White's Marketing Inspiration Book.
-                    Bring me your real problem and I'll find the right case to crack it.
+                  <p style={{ color: '#2D6A6A', fontSize: '0.9rem', maxWidth: 420, lineHeight: 1.65, marginBottom: 8, opacity: 0.8 }}>
+                    I've studied all 100 of Dan White's marketing case studies — from Ancient Egypt to Zoom.
                   </p>
-                  <div className="w-full max-w-xl grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <p style={{ color: '#C4437C', fontSize: '0.82rem', fontWeight: 600, marginBottom: 32 }}>
+                    Bring me your real challenge. I'll find the right case to crack it.
+                  </p>
+
+                  <div style={{ width: '100%', maxWidth: 560, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {STARTER_QUESTIONS.map((q, i) => (
                       <button
                         key={i}
-                        onClick={() => handleSubmit(q)}
-                        className="group text-left px-4 py-3 border border-white/6 rounded-xl bg-white/2 hover:border-gold/25 hover:bg-gold/4 transition-all duration-200"
+                        onClick={() => handleSubmit(q.text)}
+                        className="starter-card"
+                        style={{
+                          textAlign: 'left', padding: '12px 14px',
+                          background: 'rgba(255,255,255,0.5)',
+                          border: '1.5px solid rgba(45,106,106,0.2)',
+                          borderRadius: 12, cursor: 'pointer',
+                        }}
                       >
-                        <span className="text-mist/50 text-sm group-hover:text-cream/75 transition-colors leading-snug">{q}</span>
+                        <span style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>{q.emoji}</span>
+                        <span style={{ color: '#1A4A4A', fontSize: 12.5, lineHeight: 1.5, fontWeight: 500 }}>{q.text}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               ) : (
                 /* ── Conversation ── */
-                <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-5">
+                <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {messages.map((msg, i) => (
-                    <div key={i} className={`flex gap-3 fade-in ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div key={i} className="fade-in" style={{ display: 'flex', gap: 10, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
 
+                      {/* Oracle avatar */}
                       {msg.role === 'assistant' && (
-                        <div className="flex-shrink-0 w-7 h-7 border border-gold/35 rotate-45 flex items-center justify-center mt-0.5">
-                          <span className="text-gold/60 text-[8px] font-mono -rotate-45">MO</span>
+                        <div style={{ flexShrink: 0, marginTop: 2 }}>
+                          <DanWhiteAvatar size={32} />
                         </div>
                       )}
 
-                      <div className={`${msg.role === 'user' ? 'max-w-[78%]' : 'max-w-[88%] flex-1'}`}>
+                      <div style={{ maxWidth: msg.role === 'user' ? '75%' : '88%' }}>
                         {msg.role === 'user' ? (
-                          <div className="bg-white/5 border border-white/8 rounded-2xl rounded-tr-md px-4 py-3">
-                            <p className="text-cream/90 text-sm leading-relaxed">{msg.content}</p>
+                          <div style={{
+                            background: '#C4437C', color: 'white',
+                            borderRadius: '18px 18px 4px 18px',
+                            padding: '10px 16px', fontSize: 14, lineHeight: 1.6,
+                          }}>
+                            {msg.content}
                           </div>
                         ) : (
-                          <div className="rounded-2xl rounded-tl-md px-5 py-4 bg-ink-light border border-white/6">
+                          <div style={{
+                            background: 'rgba(255,255,255,0.75)',
+                            border: '1.5px solid rgba(45,106,106,0.15)',
+                            borderRadius: '4px 18px 18px 18px',
+                            padding: '14px 18px',
+                          }}>
                             <div
-                              className="text-cream/85 text-sm"
+                              className="md-body"
+                              style={{ fontSize: 14 }}
                               dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.content) }}
                             />
                             {msg.provider && (
-                              <div className="mt-3 flex items-center gap-1.5">
-                                <div
-                                  className="w-1.5 h-1.5 rounded-full opacity-60"
-                                  style={{ backgroundColor: PROVIDER_COLORS[msg.provider] ?? '#888' }}
-                                />
-                                <span className="text-mist/25 text-[10px] font-mono">
+                              <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(45,106,106,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: PROVIDER_COLORS[msg.provider] ?? '#888', display: 'inline-block' }} />
+                                <span style={{ color: '#2D6A6A', fontSize: 10, fontFamily: 'Space Mono, monospace', opacity: 0.5 }}>
                                   {msg.provider} · {msg.model}
                                 </span>
                               </div>
@@ -322,26 +390,25 @@ export default function Home() {
                         )}
                       </div>
 
+                      {/* User avatar */}
                       {msg.role === 'user' && (
-                        <div className="flex-shrink-0 w-7 h-7 bg-gold/8 border border-gold/15 rounded-full flex items-center justify-center mt-0.5">
-                          <span className="text-gold/50 text-[9px] font-mono">U</span>
+                        <div style={{ flexShrink: 0, width: 32, height: 32, borderRadius: '50%', background: '#9E2E60', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                          <span style={{ color: 'white', fontSize: 11, fontWeight: 700 }}>You</span>
                         </div>
                       )}
                     </div>
                   ))}
 
-                  {/* Typing indicator */}
+                  {/* Typing */}
                   {isLoading && (
-                    <div className="flex gap-3 justify-start fade-in">
-                      <div className="flex-shrink-0 w-7 h-7 border border-gold/35 rotate-45 flex items-center justify-center mt-0.5">
-                        <span className="text-gold/60 text-[8px] font-mono -rotate-45">MO</span>
+                    <div className="fade-in" style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ flexShrink: 0, marginTop: 2 }}>
+                        <DanWhiteAvatar size={32} />
                       </div>
-                      <div className="bg-ink-light border border-white/6 rounded-2xl rounded-tl-md px-5 py-4">
-                        <div className="flex items-center gap-1.5">
-                          {[0,1,2].map(i => (
-                            <div key={i} className="typing-dot w-2 h-2 bg-gold/50 rounded-full" />
-                          ))}
-                        </div>
+                      <div style={{ background: 'rgba(255,255,255,0.75)', border: '1.5px solid rgba(45,106,106,0.15)', borderRadius: '4px 18px 18px 18px', padding: '16px 20px', display: 'flex', gap: 5, alignItems: 'center' }}>
+                        {[0,1,2].map(i => (
+                          <div key={i} className="typing-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#C4437C' }} />
+                        ))}
                       </div>
                     </div>
                   )}
@@ -352,25 +419,31 @@ export default function Home() {
             </div>
 
             {/* ── Input ── */}
-            <div ref={inputAreaRef} className="flex-shrink-0 border-t border-white/5 bg-ink/95 backdrop-blur-xl px-4 md:px-6 pt-3 pb-4">
-              <div className="max-w-3xl mx-auto">
+            <div style={{ background: 'rgba(184,216,216,0.92)', borderTop: '2px solid #9DC5C5', backdropFilter: 'blur(12px)', padding: '12px 20px 16px', flexShrink: 0 }}>
+              <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
-                {/* Quick prompts — shown after first message */}
+                {/* Quick prompts after first message */}
                 {hasMessages && (
-                  <div className="flex gap-1.5 mb-2.5 overflow-x-auto pb-1 no-scrollbar">
+                  <div className="no-scrollbar" style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 2 }}>
                     {STARTER_QUESTIONS.slice(0, 4).map((q, i) => (
                       <button
                         key={i}
-                        onClick={() => handleSubmit(q)}
-                        className="flex-shrink-0 text-[11px] text-mist/35 border border-white/6 rounded-full px-3 py-1 hover:text-mist/65 hover:border-white/12 transition-all whitespace-nowrap"
+                        onClick={() => handleSubmit(q.text)}
+                        className="pill-btn"
+                        style={{
+                          flexShrink: 0, fontSize: 11.5, color: '#2D6A6A',
+                          border: '1.5px solid #9DC5C5', borderRadius: 20,
+                          padding: '5px 12px', background: 'rgba(255,255,255,0.4)',
+                          cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 500,
+                        }}
                       >
-                        {q.length > 38 ? q.slice(0, 38) + '…' : q}
+                        {q.emoji} {q.text.length > 36 ? q.text.slice(0, 36) + '…' : q.text}
                       </button>
                     ))}
                   </div>
                 )}
 
-                <div className="flex gap-2.5 items-end">
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                   <textarea
                     ref={textareaRef}
                     value={input}
@@ -381,27 +454,39 @@ export default function Home() {
                       t.style.height = 'auto';
                       t.style.height = Math.min(t.scrollHeight, 160) + 'px';
                     }}
-                    placeholder="Ask anything — brand strategy, growth, positioning, campaign ideas..."
+                    placeholder="Ask about brand strategy, growth, positioning, creative ideas..."
                     rows={1}
-                    className="flex-1 bg-ink-light border border-white/8 focus:border-gold/30 rounded-xl px-4 py-3 text-cream text-sm placeholder-mist/20 transition-colors resize-none leading-relaxed"
-                    style={{ minHeight: '52px', maxHeight: '160px' }}
+                    style={{
+                      flex: 1, background: 'rgba(255,255,255,0.8)',
+                      border: '1.5px solid #9DC5C5', borderRadius: 14,
+                      padding: '13px 16px', color: '#1A4A4A', fontSize: 14,
+                      resize: 'none', minHeight: 52, maxHeight: 160,
+                      lineHeight: 1.5, fontFamily: 'Space Grotesk, sans-serif',
+                      transition: 'border-color .15s',
+                    }}
+                    onFocus={e => e.target.style.borderColor = '#C4437C'}
+                    onBlur={e => e.target.style.borderColor = '#9DC5C5'}
                   />
                   <button
                     onClick={() => handleSubmit()}
                     disabled={!input.trim() || isLoading}
-                    className="flex-shrink-0 w-11 h-11 mb-0.5 border border-gold/25 bg-gold/8 hover:bg-gold/18 disabled:opacity-25 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-all group"
+                    style={{
+                      flexShrink: 0, width: 48, height: 48,
+                      background: input.trim() && !isLoading ? '#C4437C' : '#9DC5C5',
+                      border: 'none', borderRadius: 12, cursor: input.trim() && !isLoading ? 'pointer' : 'default',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all .2s', marginBottom: 2,
+                    }}
                   >
                     {isLoading
-                      ? <div className="w-3.5 h-3.5 border border-gold/40 border-t-gold/80 rounded-full animate-spin" />
-                      : <svg className="w-3.5 h-3.5 text-gold/70 group-hover:text-gold transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                        </svg>
+                      ? <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      : <svg width="18" height="18" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                     }
                   </button>
                 </div>
 
-                <p className="text-mist/18 text-[10px] mt-1.5 text-center">
-                  ↵ send · shift+↵ new line · trained on Dan White's 100 marketing case studies
+                <p style={{ color: '#2D6A6A', fontSize: 10.5, textAlign: 'center', marginTop: 8, opacity: 0.5 }}>
+                  ↵ send · shift+↵ new line · grounded in Dan White's 100 marketing case studies
                 </p>
               </div>
             </div>
@@ -409,6 +494,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }
