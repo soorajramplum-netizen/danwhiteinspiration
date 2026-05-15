@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildSystemPrompt } from '@/lib/system-prompt';
+import { CASE_STUDIES } from '@/lib/knowledge-base';
 
 export const runtime = 'edge';
 
@@ -259,7 +260,7 @@ async function runFallbackChain(
 // ─────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    const { messages, question } = await request.json();
+    const { messages, question, usedCaseIds } = await request.json();
 
     if (!question?.trim()) {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
@@ -279,7 +280,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const systemPrompt = buildSystemPrompt();
+    const systemPrompt = buildSystemPrompt(usedCaseIds || []);
 
     // Canonical history format is Gemini-style; we convert for OpenAI-compatible callers
     const conversationHistory: GeminiMessage[] = messages || [];
@@ -302,12 +303,18 @@ export async function POST(request: NextRequest) {
       { role: 'model', parts: [{ text: result.text }] },
     ];
 
+    // Extract case IDs mentioned in response (e.g. "Case #12", "Case #45")
+    const mentionedIds = Array.from(result.text.matchAll(/Case #(\d+)/gi))
+      .map(m => parseInt(m[1]))
+      .filter(id => id >= 1 && id <= 100);
+    const newUsedCaseIds = Array.from(new Set([...(usedCaseIds || []), ...mentionedIds]));
+
     return NextResponse.json({
       response: result.text,
       provider: result.provider,
       model: result.model,
       updatedHistory,
-      // Expose attempt log only in development
+      usedCaseIds: newUsedCaseIds,
       ...(process.env.NODE_ENV === 'development' && { attemptLog: result.attemptLog }),
     });
   } catch (error) {
